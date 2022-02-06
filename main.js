@@ -28,7 +28,8 @@ class Wobbler {
         this.seed = random(100);
         this.polygon = [];
 
-        this.alpha = random(100, 255);
+        this.alpha = (palId == 0) ? random(100, 255) : 255;
+        this.weigth = (palId == 0) ? 1 : 2;
         this.playRadius = 0;
         this.isPlaying = false;
         this.note = 0;
@@ -44,10 +45,12 @@ class Wobbler {
     draw() {
         if(this.isPlaying) {
             strokeWeight(6);
-            stroke(strokeColor, 255);
+            //stroke(strokeColor, 255);
+            stroke(colorScheme[palId][stId].r, colorScheme[palId][stId].g, colorScheme[palId][stId].b, 255);
         } else {
-            strokeWeight(1);
-            stroke(strokeColor, this.alpha);
+            strokeWeight(this.weigth);
+            //stroke(strokeColor, this.alpha);
+            stroke(colorScheme[palId][stId].r, colorScheme[palId][stId].g, colorScheme[palId][stId].b, this.alpha);
         }
 
         noFill();
@@ -58,6 +61,28 @@ class Wobbler {
             vertex(x, y);
         }
         endShape(CLOSE);
+
+        if(this.isPlaying == false) {
+            let offset = map(this.maxR, 0.1, width/2, 1, 3);
+            strokeWeight(1);
+            stroke(255, 0, 255);
+            beginShape();
+            for (let i = 0; i < this.polygon.length; i++) {
+                let x = this.polygon[i][0] + offset;
+                let y = this.polygon[i][1];
+                vertex(x, y);
+            }
+            endShape(CLOSE);
+
+            stroke(0, 255, 255);
+            beginShape();
+            for (let i = 0; i < this.polygon.length; i++) {
+                let x = this.polygon[i][0] - offset;
+                let y = this.polygon[i][1];
+                vertex(x, y);
+            }
+            endShape(CLOSE);
+        }
     }
   
     blob() {
@@ -111,8 +136,16 @@ let playFlag = false;
 let polySynth;
 let playId;
 
-let strokeColor = 255;
-let bgColor = 0;
+let colorScheme = [
+    [{r:0, g:0, b:0}, {r:255, g:255, b:255}],
+    [{r:255, g:255, b:0}, {r:255, g:0, b:255}]
+]
+
+let palId = 1;
+let bgId = 0;
+let stId = 1;
+let displayString;
+let coolFont;
 
 function updateSoundParam(len) {
     soundLen = len;
@@ -155,26 +188,27 @@ function setGrid() {
 }
 
 function setCircle() {
-    let wobCount = 0; 
-    let delta = TWO_PI / wobbNumber;
+    let wobCount = wobbNumber - 1;
+    let circleTime = 1;
+    let deltaR = width / (2 * ceil(wobbNumber / 8));
 
-    for (let a = 0; a < TWO_PI; a+=delta) {
-        let maxRad = width / wobbNumber;
-        //let faces = round(map(a, 0, TWO_PI, 50, 10));
-        //let magnitude = map(a, 0, TWO_PI, 10, 0.5);
-        //let timeInc = random(0.01, 0.5);
-        //let phaseInc = random(0, 0.01);
+    do {
+        let wobMin = min(8, wobCount) + 1;
+        let delta = TWO_PI / wobMin;
+        let maxRad = width / wobMin;
+        let r = deltaR * circleTime - maxRad;
 
-        let r = width / 2 - maxRad;
-        let x = r * cos(a) + width/2;
-        let y = r * sin(a) + width/2;
+        for (let a = 0; a < TWO_PI; a+=delta) {
+            let x = r * cos(a) + width/2;
+            let y = r * sin(a) + width/2;
 
-        wobblers[wobCount].circleX = x;
-        wobblers[wobCount].circleY = y;
-        wobblers[wobCount].circleRad = maxRad;
-
-        wobCount++;
-    }  
+            wobblers[wobCount].circleX = x;
+            wobblers[wobCount].circleY = y;
+            wobblers[wobCount].circleRad = maxRad;
+            wobCount--;
+        } 
+        circleTime++;
+    } while (wobCount > 0);
 }
 
 function switchToCenter() {
@@ -220,30 +254,50 @@ function mousePressed() {
     playFlag = true;
 }
 
+function centerCanvas() {
+    let x = (windowWidth - width) / 2;
+    let y = (windowHeight - height) / 2;
+    canvas.position(x, y);
+}
+
+function windowResized() {
+    centerCanvas();
+}
+
+function preload() {
+    // load font
+    coolFont = loadFont('font/INVASION2000.TTF');
+}
+
 function setup() {
+    canvas = createCanvas(800, 800);
+    canvas.style('display', 'block');
+    centerCanvas();
+    
     getAudioContext().suspend();
-    createCanvas(800, 800);
     polySynth = new p5.PolySynth();
     triggerRatio = floor(triggerRatio);
     playId = 0;
+    palId = floor(random(colorScheme.length));
 
     // Init randomly the main conf
-    wobbNumber = pow(2, floor(random(2, 5)));
+    wobbNumber = pow(2, floor(random(3, 6)));
     repTime = round(random(2,3));
     groupSize = 4 *(1 + round(random()));
     groupSize = (groupSize < wobbNumber) ? groupSize : wobbNumber;
     groupTime = repTime;
     switchId = round(random(2));
 
-    console.log("Init, wobblers:%d, groupSize:%d, switchId:%d, rep:%d", wobbNumber, groupSize, switchId, repTime);
+    let code = wobbNumber * 256 + groupSize * 32 + repTime;
+    displayString = "0x" + code.toString(16).padStart(4, '0').toUpperCase();
 
     // Radial displacement
     for (let i = 0; i < wobbNumber; i++) {
         let maxRad =(width / 2) * (1 -  i / wobbNumber);
         let faces = round(map(i, 0, wobbNumber - 1, 50, 10));
         let magnitude = map(i, 0, wobbNumber - 1, 10, 0.5);
-        let timeInc = random(0.01, 0.5);//map(i,  0, wobbNumber - 1, 0.1, 0.01);
-        let phaseInc = random(0, 0.01); //map(i,  0, wobbNumber - 1, 0, 0.05);
+        let timeInc = random(0.01, 0.5);
+        let phaseInc = random(0, 0.01); 
 
         wobblers[i] = new Wobbler(width / 2, height / 2, maxRad, faces);
         wobblers[i].setDynamics(phaseInc, timeInc, magnitude);
@@ -254,10 +308,7 @@ function setup() {
 }
 
 function draw() {
-    // Get the current frame rate
-    let fps = frameRate();
-
-    background(bgColor);
+    background(colorScheme[palId][bgId].r, colorScheme[palId][bgId].g, colorScheme[palId][bgId].b);
 
     for (let i = 0; i < wobbNumber; i++) {
         wobblers[i].blob();
@@ -289,14 +340,18 @@ function draw() {
                 }
 
                 // invert color
-                strokeColor = (strokeColor == 255) ? 0 : 255;
-                bgColor = 255 - strokeColor;
+                bgId = (bgId == 0) ? 1 : 0;
+                stId = 1 - bgId;
             }     
         }    
     }
 
-    // Print the frame rate on the bottom left of the canvas
-    fill(255);
+    // Print the gen code at bottom left of the canvas
+    textAlign(RIGHT);
+    textStyle(ITALIC);
+    textFont(coolFont);
     stroke(0);
-    text("FPS: " + fps.toFixed(2), 10, height - 10);
+    strokeWeight(0);
+    fill(colorScheme[palId][stId].r, colorScheme[palId][stId].g, colorScheme[palId][stId].b);
+    text(displayString, width - 10, height - 10);
 }
