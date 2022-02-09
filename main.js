@@ -1,4 +1,9 @@
 
+
+function randRangeInt(minVal, maxVal) {
+    return Math.round(fxrand() * (maxVal - minVal) + minVal);
+}
+
 class Wobbler {
     constructor(x, y, maxR, faces) {
         this.posX = x;
@@ -25,10 +30,10 @@ class Wobbler {
         this.tInc = 0.01;
         this.t = 0;
         this.noisePhase = 0;
-        this.seed = random(100);
+        this.seed = randRangeInt(0, 100);
         this.polygon = [];
 
-        this.alpha = (palId == 0) ? random(100, 255) : 255;
+        this.alpha = (palId == 0) ? randRangeInt(100, 255) : 255;
         this.weigth = (palId == 0) ? 1 : 2;
         this.playRadius = 0;
         this.isPlaying = false;
@@ -155,6 +160,8 @@ function updateSoundParam(len) {
 }
 
 function setCentrinc() {
+    let halfWidth =  width / 2;
+    let halfHeight =  height / 2;
     for (let i = 0; i < wobbNumber; i++) {
         let maxRad = halfWidth * (1 -  i / wobbNumber);
 
@@ -254,15 +261,16 @@ function mousePressed() {
     playFlag = true;
 }
 
-function centerCanvas() {
-    let x = (windowWidth - width) / 2;
-    let y = (windowHeight - height) / 2;
-    canvas.position(x, y);
-}
 
 function windowResized() {
-    centerCanvas();
+    let minSize = min(windowWidth, windowHeight);
+    setGrid();
+    setCircle();
+    setCentrinc();
+
+    resizeCanvas(minSize, minSize);
 }
+
 
 function preload() {
     // load font
@@ -270,9 +278,8 @@ function preload() {
 }
 
 function setup() {
-    canvas = createCanvas(800, 800);
-    canvas.style('display', 'block');
-    centerCanvas();
+    let minSize = min(windowWidth, windowHeight);
+    canvas = createCanvas(minSize, minSize);
     
     getAudioContext().suspend();
     polySynth = new p5.PolySynth();
@@ -281,12 +288,13 @@ function setup() {
     palId = floor(random(colorScheme.length));
 
     // Init randomly the main conf
-    wobbNumber = pow(2, floor(random(3, 6)));
-    repTime = round(random(2,3));
-    groupSize = 4 *(1 + round(random()));
+    wobbNumber = pow(2, randRangeInt(3, 6));
+    repTime = randRangeInt(2,3);
+    groupSize = 4 *(1 + round(fxrand()));
     groupSize = (groupSize < wobbNumber) ? groupSize : wobbNumber;
     groupTime = repTime;
-    switchId = round(random(2));
+    switchId = floor(fxrand()*3);
+    switchId = (switchId === 3) ? 2: switchId;
 
     let code = wobbNumber * 256 + groupSize * 32 + repTime;
     displayString = "0x" + code.toString(16).padStart(4, '0').toUpperCase();
@@ -350,6 +358,7 @@ function draw() {
     textAlign(RIGHT);
     textStyle(ITALIC);
     textFont(coolFont);
+    textSize(width/60);
     stroke(0);
     strokeWeight(0);
     fill(colorScheme[palId][stId].r, colorScheme[palId][stId].g, colorScheme[palId][stId].b);
