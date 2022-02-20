@@ -285,7 +285,7 @@ function setup() {
     polySynth = new p5.PolySynth();
     triggerRatio = floor(triggerRatio);
     playId = 0;
-    palId = floor(random(colorScheme.length));
+    palId = floor(fxrand()*(colorScheme.length));
 
     // Init randomly the main conf
     wobbNumber = pow(2, randRangeInt(3, 6));
